@@ -5,6 +5,7 @@
 
 import psycopg2
 import random
+import datetime
 from faker import Faker
 #fake = Faker('es_ES')
 fake = Faker('es_CA')
@@ -13,7 +14,9 @@ faker = Faker('es_ES')
 # Poner 10000 de momento lo pruebo con 1000
 num_tuples = 1000
 num_taules = 13
+num_directors = num_repartiment = 500
 codis = random.sample(range(10000000), num_taules*num_tuples)
+sexes = ["H", "M"]
 #acc_id  = random.sample(range(10000000), 10000000)
 
 # print(co)
@@ -25,20 +28,18 @@ def crear_persona(cur):
     print('Creant la taula persona. {0} persones seran introduides.'.format(num_tuples))
     cur.execute("DROP TABLE IF EXISTS persona")
     cur.execute("""CREATE TABLE persona(codi bigint NOT NULL PRIMARY KEY,
-        nom varchar(50) NOT NULL, data_naixement date NOT NULL,
+        nom varchar(50) NOT NULL, data_naixement date,
         sexe char, nacionalitat varchar(100))""")
 
     for i in range(num_tuples):
         print(i+1, end = '\r')
         codi = codis[i]
         nom = fake.first_name() + ' ' + fake.last_name() + ' ' + fake.last_name()
-        data_naixement = '1996-05-26'
+        data_naixement = faker.date()
         sexe = "H"
         nacionalitat = faker.country()
-        print(nacionalitat)
-        # Guardem el index i per continuar a la taula codis des de la ultima posicio i no repetir numeros
-        index = i
-        print(index)
+        while nacionalitat == "Côte d'Ivoire":
+            nacionalitat = faker.country()
         try:
             cur.execute("INSERT INTO persona VALUES ('%s', '%s', '%s', '%s', '%s')" % (codi, nom, data_naixement, sexe, nacionalitat))
         except psycopg2.IntegrityError as e:
@@ -47,19 +48,17 @@ def crear_persona(cur):
         conn.commit()
 
 def crear_director(cur):
-    num_directors = num_tuples/2
-    print('Creant la taula director. % directors seran introduides.' % num_directors)
+    print('Creant la taula director. {0} directors seran introduides.'.format(num_directors))
     cur.execute("DROP TABLE IF EXISTS director")
     cur.execute("""CREATE TABLE director(codi_per bigint NOT NULL REFERENCES persona ON UPDATE CASCADE,
         num_films_dirigits int NOT NULL, PRIMARY KEY(codi_per))""")
-
     # Obtenim tots els codis de la taula persona
-    c_per = cur.execute("SELECT codi FROM persona")
-
+    cur.execute("SELECT codi FROM persona")
+    c_per = cur.fetchall()
     for i in range(num_directors):
         print(i+1, end = '\r')
         # Puede que no se exactamente asi y falte algo
-        codi_per = c_per[i]
+        codi_per = c_per[i][0]
         num_films_dirigits = random.randint(1, 50)
         try:
             cur.execute("INSERT INTO director VALUES ('%s', '%s')" % (codi_per, num_films_dirigits))
@@ -67,22 +66,22 @@ def crear_director(cur):
             conn.rollback()
             print("Error insertant (%s, %s). Informacio: %s" % (codi_per, num_films_dirigits, e))
         conn.commit()
+        index = i
 
 def crear_repartiment(cur):
-    num_repartiment = num_tuples/2
-    print('Creant la taula director. % directors seran introduides.' % num_repartiment)
+    print('Creant la taula repartiment. % repartiment seran introduits.' % num_repartiment)
     cur.execute("DROP TABLE IF EXISTS repartiment")
     cur.execute("""CREATE TABLE repartiment(codi_per bigint NOT NULL REFERENCES persona ON UPDATE CASCADE,
         num_films_participa int NOT NULL, PRIMARY KEY(codi_per))""")
 
     # Obtenim tots els codis de la taula persona
-    c_per = cur.execute("SELECT codi FROM persona")
-
+    cur.execute("SELECT codi FROM persona")
+    c_per = cur.fetchall()
     #for i in range(num_persona):
     for i in reversed(range(num_repartiment)):
-        #print(i+1, end = '\r')
+        print(i+1, end = '\r')
         # Puede que no se exactamente asi y falte algo
-        codi_per = c_per[i]
+        codi_per = c_per[i][0]
         num_films_participa = random.randint(1, 50)
         try:
             cur.execute("INSERT INTO repartiment VALUES ('%s', '%s')" % (codi_per, num_films_participa))
@@ -106,6 +105,8 @@ try:
     cur = conn.cursor()
     print("Connexio amb la base de dades establerta.")
     crear_persona(cur)
+    crear_director(cur)
+    crear_repartiment(cur)
 
 except(Exception, psycopg2.Error) as err:
     print("Error durant el proces de connexio amb la base de dades: ", err)
