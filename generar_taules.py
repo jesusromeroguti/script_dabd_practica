@@ -13,7 +13,7 @@ fake = Faker('es_CA')
 faker = Faker('es_ES')
 
 # Poner 10000 de momento lo pruebo con 1000
-num_tuples = 1000
+num_tuples = 500
 num_taules = 13
 num_directors = num_repartiment = 500
 codis = random.sample(range(10000000), num_taules*num_tuples)
@@ -69,7 +69,8 @@ cataleg = ["El Señor de los Anilllos", "E.T. El extraterrestre", "Toro salvaje"
              "Logan", "Mad Max", "Ip man", "Jhon Wick", "Avatar", "Casablanc", "Doctor Zhivago", "Desafio Total", "El caballero oscuro",
              "Los juegos del hambre", "El coloso en llamas", "Indian Jones", "Origen", "Creed", "Interestellar", "Scarface", "Gladiator",
              "Buscando a nemo", "Dumbo", "La sirenita", "Matrix", "Aladin", "El libro de la selva", "Los pitufos", "El Rey Leon",
-             "Mulan", "Hercules", "La Cenicienta", "Blancanieves", "Juego de tronos", "La que se avecina", "La casa de papel", "Stranger Things", "Black Mirror", "Pokemon", "Los simposon", "Breaking Bad",
+             "Mulan", "Hercules", "La Cenicienta", "Blancanieves", "Juego de tronos", "La que se avecina", "La casa de papel", "Stranger Things",
+             "Black Mirror", "Pokemon", "Los simposon", "Breaking Bad",
              "Padre de Familina", "Futurama", "Vikings", "Peaky Blinders", "Locke and Key", "Chernobyl", "Medico de guardia", "Los Serrano",
              "Fisica o Quimica", "Outlander", "Los Soprano", "The Good Doctor", "Anatomia de Grey", "Dragon Ball", "Inuyasha", "Detective Conan",
              "Arale", "Ranma", "Prison Break", "Modern Family", "Pequeñas mentirosas", "Mentes Criminales", "Los 100", "Suits", "House of Cards",
@@ -80,7 +81,6 @@ cataleg = ["El Señor de los Anilllos", "E.T. El extraterrestre", "Toro salvaje"
              "El viaje del emperador", "Océanos", "La pesadilla de Darwin", "Senna", "El impostor", "Samsara", "Capitalismo", "Amy", "Influencers"]
 
 
-print(len(cataleg))
 size = len(peliculas) + len(series) + len(documentals)
 
 index = 0
@@ -94,7 +94,6 @@ def existeix(username):
     return b
 
 def crear_persona(cur):
-    # print('Creant la taula persona. % persones seran introduides.' % num_tuples)
     print('Creant la taula persona. {0} persones seran introduides.'.format(num_tuples))
     cur.execute("DROP TABLE IF EXISTS persona")
     cur.execute("""CREATE TABLE persona(codi bigint NOT NULL PRIMARY KEY,
@@ -119,8 +118,7 @@ def crear_persona(cur):
             print("Error insertant (%s, %s, %s, %s, %s). Informacio: %s" % (codi, nom, data_naixement, sexe, nacionalitat, e))
         conn.commit()
 
-        # Per saber quants codis he gastat
-        # index_codi = i
+
 
 def crear_director(cur):
     print('Creant la taula director. {0} directors seran introduides.'.format(num_directors))
@@ -286,21 +284,44 @@ def crear_pelicula(cur):
     cur.execute("DROP TABLE IF EXISTS pelicula")
     cur.execute("""CREATE TABLE pelicula(codi_pel bigint NOT NULL REFERENCES cataleg ON UPDATE CASCADE, PRIMARY KEY(codi_pel))""")
 
-    cur.execute("SELECT codi FROM cataleg")
-    c_cat = cur.fetchall()
+    # cur.execute("SELECT codi FROM cataleg")
+    # c_cat = cur.fetchall()
+    # for i in range(len(peliculas)):
+    #     codi_pel = c_cat[len(series) + len(documentals) + i][0]
+    #     cur.execute("SELECT * FROM serie where codi_ser = '%s'" % (codi_pel))
+    #     while bool(cur.fetchone()):
+    #         cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
+    #         codi_pel = cur.fetchone()[0]
+    #         cur.execute("SELECT * FROM serie WHERE codi_ser='%s'" % (codi_pel))
+    #     try:
+    #         cur.execute("INSERT INTO cataleg VALUES ('%s')" % (codi_pel))
+    #     except psycopg2.IntegrityError as e:
+    #         conn.rollback()
+    #         print("Error insertant (%s). Informacio: %s" % (codi_pel, e))
+    #     conn.commit()
+
     for i in range(len(peliculas)):
-        codi_pel = c_cat[len(series) + len(documentals) + i][0]
-        cur.execute("SELECT * FROM serie where codi_ser = '%s'" % (codi_pel))
-        while bool(cur.fetchone()):
+        print(i+1, end = '\r')
+        cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
+        codi_cat = cur.fetchone()[0]
+        cur.execute("SELECT * from serie where codi_ser = '%s' " % (codi_cat))
+        cat1 = bool(cur.fetchone())
+        cur.execute("SELECT * from documental where codi_doc = '%s' " % (codi_cat))
+        cat2 = bool(cur.fetchone())
+        while cat1 or cat2:
             cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
-            codi_pel = cur.fetchone()[0]
-            cur.execute("SELECT * FROM serie WHERE codi_ser='%s'" % (codi_pel))
+            codi_cat = cur.fetchone()[0]
+            cur.execute("SELECT * from serie where codi_ser = '%s' " % (codi_cat))
+            cat1 = bool(cur.fetchone())
+            cur.execute("SELECT * from documental where codi_doc = '%s' " % (codi_cat))
+            cat2 = bool(cur.fetchone())
         try:
-            cur.execute("INSERT INTO cataleg VALUES ('%s')" % (codi_pel))
+            cur.execute("INSERT INTO pelicula VALUES ('%s')" % (codi_cat))
         except psycopg2.IntegrityError as e:
             conn.rollback()
-            print("Error insertant (%s). Informacio: %s" % (codi_pel, e))
+            print("Error insertant (%s). Informacio: %s" % (codi_cat, e))
         conn.commit()
+
 
 def crear_documental(cur):
     print('Creant la taula documental. {0} series seran introduides a documental.'.format(len(documentals)))
@@ -371,6 +392,43 @@ def crear_frequencia(cur):
             conn.rollback()
             print("Error insertant (%s, %s, %s). Informacio: %s" % (codi_cat, nom_usuari, nombre_cops_vist, e))
         conn.commit()
+
+def crear_pertany(cur):
+    print('Creant la taula pertany. {0} elements seran introduits a pertany.'.format(200))
+    cur.execute("DROP TABLE IF EXISTS pertany")
+    cur.execute("""CREATE TABLE pertany(codi_cat bigint NOT NULL REFERENCES cataleg ON UPDATE CASCADE,
+        nom_genere varchar(20) NOT NULL REFERENCES genere ON UPDATE CASCADE, PRIMARY KEY(codi_cat, nom_genere))""")
+
+    # Solo las peliculas i las series tienen genero.
+    # Tendre que filtrar aquellos codi_cat que sean de series o de peliculas solo para utilizarlos como fk
+    for i in range(50):
+        cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
+        codi_cat = cur.fetchone()[0]
+        cur.execute("SELECT * from documental where codi_doc = '%s'" % (codi_cat))
+        while bool(cur.fetchone()):
+            cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
+            codi_cat = cur.fetchone()[0]
+            cur.execute("SELECT * from documental where codi_doc = '%s'" % (codi_cat))
+        cur.execute("SELECT nom FROM genere ORDER BY RANDOM() LIMIT 1")
+        nom_genere = cur.fetchone()[0]
+        cur.execute("SELECT * from pertany where codi_cat = '%s' AND nom_genere = '%s'" % (codi_cat, nom_genere))
+        while bool(cur.fetchone()):
+            cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
+            codi_cat = cur.fetchone()[0]
+            cur.execute("SELECT * from documental where codi_doc = '%s'" % (codi_cat))
+            while bool(cur.fetchone()):
+                cur.execute("SELECT codi FROM cataleg ORDER BY RANDOM() LIMIT 1")
+                codi_cat = cur.fetchone()[0]
+                cur.execute("SELECT * from documental where codi_doc = '%s'" % (codi_cat))
+            cur.execute("SELECT nom FROM genere ORDER BY RANDOM() LIMIT 1")
+            nom_genere = cur.fetchone()[0]
+            cur.execute("SELECT * from pertany where codi_cat = '%s' AND nom_genere = '%s'" % (codi_cat, nom_genere))
+        try:
+            cur.execute("INSERT INTO pertany VALUES ('%s', '%s')" % (codi_cat, nom_genere))
+        except psycopg2.IntegrityError as e:
+            conn.rollback()
+            print("Error insertant (%s, %s). Informacio: %s" % (codi_cat, nom_genere, e))
+        conn.commit()
 # Establim connexio i cridem a les funcions per crear i omplir les taules
 try:
     # conn = psycopg2.connect(user="est_h7793896",
@@ -386,17 +444,18 @@ try:
     cur = conn.cursor()
     print("Connexio amb la base de dades establerta.")
     crear_persona(cur)
-    # crear_director(cur)
-    # crear_repartiment(cur)
-    # crear_genere(cur)
+    crear_director(cur)
+    crear_repartiment(cur)
+    crear_genere(cur)
     crear_tarifa(cur)
     crear_usuari(cur)
     crear_cataleg(cur)
-    # crear_serie(cur)
-    # crear_documental(cur)
-    # crear_pelicula(cur)
+    crear_serie(cur)
+    crear_documental(cur)
+    crear_pelicula(cur)
     crear_forma(cur)
     crear_frequencia(cur)
+    crear_pertany(cur)
 
 except(Exception, psycopg2.Error) as err:
     print("Error durant el proces de connexio amb la base de dades: ", err)
